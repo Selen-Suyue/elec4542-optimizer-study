@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+data/
+splits/
+runs/
+wandb/
+*.pt
+*.pth
+*.npy
+.env

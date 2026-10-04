@@ -1,0 +1,78 @@
+{
+  "model": {
+    "input_size": 64,
+    "classes": 200,
+    "patch_size": 8,
+    "depth": 6,
+    "width": 192,
+    "heads": 3,
+    "mlp_ratio": 4,
+    "normalization": "pre-LayerNorm",
+    "pooling": "CLS token",
+    "dropout": 0,
+    "pretrained": false
+  },
+  "training": {
+    "seed": 42,
+    "batch_size": 128,
+    "eval_batch_size": 512,
+    "epochs": 60,
+    "warmup_epochs": 5,
+    "min_lr_ratio": 0.01,
+    "bf16": true,
+    "log_every": 25,
+    "augmentation": "per-image square resized crop area [0.6,1.0], bilinear, horizontal flip p=0.5; no mixup",
+    "schedule": "linear warmup 5 epochs, cosine decay to 1% base LR; per optimizer step"
+  },
+  "gradient_clip_global_norm": 1.0,
+  "loss": "cross-entropy, no label smoothing",
+  "methods": {
+    "sgd_momentum": {
+      "lr": 0.1,
+      "weight_decay": 0.0001,
+      "momentum": 0.9,
+      "nesterov": true
+    },
+    "adam": {
+      "lr": 0.0003,
+      "weight_decay": 0.0001,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "eps": 1e-08,
+      "decay": "coupled L2"
+    },
+    "adamw": {
+      "lr": 0.0003,
+      "weight_decay": 0.05,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "eps": 1e-08,
+      "decay": "decoupled"
+    },
+    "muon_aux_adamw": {
+      "lr": 0.02,
+      "aux_lr": 0.0003,
+      "weight_decay": 0.05,
+      "momentum": 0.95,
+      "ns_steps": 5,
+      "nesterov": true,
+      "aux_betas": [
+        0.9,
+        0.999
+      ],
+      "aux_eps": 1e-08,
+      "decay": "decoupled",
+      "matrix_rule": "name starts with blocks. and parameter.ndim == 2",
+      "auxiliary_rule": "all remaining parameters"
+    }
+  },
+  "decay_rule": "Use the stated weight decay on tensors with ndim >= 2; zero decay on vectors/scalars. In the Muon run, hidden matrices use Muon decay; auxiliary parameters follow the same ndim rule.",
+  "checkpoint_selection": "highest validation top-1 accuracy, keep earliest epoch on ties",
+  "split": "450 train + 50 validation images per class from official train; official labeled validation is final held-out test; official unlabeled test unused",
+  "order_seed": "42 + 1000 + zero_based_epoch",
+  "augmentation_seed": "42 + 2000 + zero_based_epoch"
+}
