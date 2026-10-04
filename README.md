@@ -2,7 +2,7 @@
 
 **Research question:** How do SGD with momentum, Adam, AdamW and Muon with auxiliary AdamW affect convergence, generalization and training cost on the same image-classification task?
 
-This repository provides the fixed ViT, shared image transform, dataset split script and prescribed baseline settings. Students implement the training/evaluation workflow and connect the optimizers using the original references. Form a hypothesis and design an additional controlled experiment to explain your observations.
+This repository provides the fixed ViT, shared image transform, dataset split script and reference starting settings. Students implement the training/evaluation workflow and connect the optimizers using the original references. Form a hypothesis and design an additional controlled experiment to explain your observations.
 
 ## 1. Start here
 
@@ -60,11 +60,11 @@ Read each JSONL row as `{"path": "train/.../images/....JPEG", "label": 0}`. Open
 | Normalization / classifier | Pre-LayerNorm / final LayerNorm + CLS-token linear head |
 | Dropout / pretrained weights | 0 / none |
 
-The patch embedding is a stride-8 convolution. Attention uses PyTorch scaled dot-product attention. Use the supplied model instead of a pretrained model or a timm architecture with a similar name. Set `torch.manual_seed(42)` immediately before constructing it, and save its initialization hash. Every run starts from the same saved initial state.
+The patch embedding is a stride-8 convolution. Attention uses PyTorch scaled dot-product attention. Use the supplied model instead of a pretrained model or a timm architecture with a similar name. The reference initialization uses `torch.manual_seed(42)` immediately before constructing it; and save its initialization hash. Every run starts from the same saved initial state.
 
-## 4. Prescribed baseline settings
+## 4. Reference starting settings
 
-The machine-readable specification is [`protocol.json`](protocol.json).
+The machine-readable reference configuration is [`protocol.json`](protocol.json). These are suggested starting values, not mandatory project requirements. You may choose the training duration, batch size, schedule and method-specific hyperparameters. Keep the model, split, initialization, preprocessing and training budget consistent across the methods being compared, and document changes. If tuning, give each method a comparable validation-based tuning budget; do not tune on held-out test data.
 
 | Shared setting | Value |
 |---|---|
@@ -79,7 +79,7 @@ The machine-readable specification is [`protocol.json`](protocol.json).
 
 Use `preprocessing.py` for the crop rather than silently substituting torchvision's random resized crop: its aspect-ratio distribution and boundary sampling differ. Use unaugmented, normalized images for validation/test. Keep the last partial training batch. Set `cudnn.benchmark=False`; record TF32 and precision settings. For CUDA reproduction, enable TF32 consistently across runs. Hardware/kernel changes can prevent bitwise equality; save environment details.
 
-Use separate epoch generators: shuffle seed `42+1000+epoch` and augmentation seed `42+2000+epoch`, where epoch starts at 0. Keep identical sample order and augmentation across methods. Apply the same schedule multiplier to **both** Muon and auxiliary AdamW groups.
+The reference configuration uses separate epoch generators: shuffle seed `42+1000+epoch` and augmentation seed `42+2000+epoch`, where epoch starts at 0. Keep identical sample order and augmentation across methods. Apply the same schedule multiplier to **both** Muon and auxiliary AdamW groups.
 
 | Run | Base LR | Weight decay | Other settings |
 |---|---:|---:|---|
@@ -88,27 +88,27 @@ Use separate epoch generators: shuffle seed `42+1000+epoch` and augmentation see
 | AdamW | 0.0003 | 0.05 | betas (0.9,0.999), epsilon 1e-8; decoupled decay |
 | Muon + auxiliary AdamW | 0.02 / 0.0003 | 0.05 | Muon momentum 0.95, Nesterov on, 5 Newton–Schulz steps; auxiliary AdamW uses the same betas/epsilon as above |
 
-For SGD/Adam/AdamW, apply the stated decay to tensors with two or more dimensions, and zero decay to vectors/scalars. These coefficients are deliberately specified **per method**; Adam's coupled L2 and AdamW's decoupled decay are different operations. Compare these prescribed configurations, and state that they do not isolate the optimizer rule from every hyperparameter choice. A shared numerical LR is not required across optimizers.
+For SGD/Adam/AdamW, apply the stated decay to tensors with two or more dimensions, and zero decay to vectors/scalars. These suggested coefficients differ **per method**; Adam's coupled L2 and AdamW's decoupled decay are different operations. If using these reference configurations, state that they do not isolate the optimizer rule from every hyperparameter choice. A shared numerical LR is not required across optimizers.
 
 ### Muon parameter routing
 
-Follow the [original Muon repository](https://github.com/KellerJordan/Muon) and [author's explanation](https://kellerjordan.github.io/posts/muon/) for the update definition. Cite and record the exact implementation commit you use. For this course baseline:
+Follow the [original Muon repository](https://github.com/KellerJordan/Muon) and [author's explanation](https://kellerjordan.github.io/posts/muon/) for the update definition. Cite and record the exact implementation commit you use. For the provided reference configuration:
 
 - **Muon:** parameters whose names start with `blocks.` and whose dimension is exactly 2: attention QKV/projection and MLP matrices (24 tensors).
 - **Auxiliary AdamW:** every other parameter, including patch embedding, CLS/position embeddings, normalization, all biases and the classification head. Use decay 0.05 on tensors with ndim ≥ 2 and zero decay otherwise.
 - Each trainable tensor belongs to exactly one optimizer. Clip the combined model gradient once before either optimizer step.
 
-Use the documented single-device variant with momentum 0.95, five quintic Newton–Schulz iterations (coefficients 3.4445, −4.775, 2.0315), BF16 matrix orthogonalization, normalization epsilon 1e-7 and update scale `sqrt(max(1, rows/columns))`. Record any departure from this variant. The public repository may change, so matching only the name “Muon” is insufficient.
+The reference setup uses the documented single-device variant with momentum 0.95, five quintic Newton–Schulz iterations (coefficients 3.4445, −4.775, 2.0315), BF16 matrix orthogonalization, normalization epsilon 1e-7 and update scale `sqrt(max(1, rows/columns))`. Record any departure from this variant. The public repository may change, so matching only the name “Muon” is insufficient.
 
 ## 5. Build the experiment
 
 1. Prepare the manifests, verify split counts and save the class order and split hashes.
 2. Make a one-batch forward/backward check. Confirm that all parameters receive finite gradients, and that Muon/auxiliary groups are disjoint and exhaustive.
-3. Use a short development run to check the training/evaluation code, then restart each baseline from the same initialization for the full 60 epochs. Do not carry warm-up test weights into the baseline.
+3. Use a short development run to check the training/evaluation code, then restart each baseline from the same initialization for your chosen training budget, kept consistent across methods. Do not carry warm-up test weights into the baseline.
 4. Record training loss/accuracy, validation loss/accuracy/error once per epoch, and training loss/gradient norm every 25 steps. Error means `1 - top1_accuracy`. Record the data loss consistently; do not add decay penalties to the plotted training loss.
 5. Select the checkpoint with the highest validation top-1 accuracy; keep the earliest on a tie. Evaluate the selected checkpoint on held-out test **once after training**.
 6. Plot training loss and validation accuracy/error against both epoch and elapsed time. Also report final held-out accuracy/error, total training time and steady-state step time. Synchronize CUDA before timing; use the same hardware, precision and data-loading policy. Include both optimizer steps in the Muon timing.
-7. Propose one additional controlled experiment, explain why it tests your hypothesis, and label it separately from the fixed baseline. For example, investigate LR sensitivity with equal tuning budgets, weight-decay sensitivity, seed variation, or the effect of Newton–Schulz iteration count. Use validation for choices and keep test held out.
+7. Propose one additional controlled experiment, explain why it tests your hypothesis, and label it separately from your main comparison. For example, investigate LR sensitivity with equal tuning budgets, weight-decay sensitivity, seed variation, or the effect of Newton–Schulz iteration count. Use validation for choices and keep test held out.
 
 Run methods sequentially on one GPU if needed. Eight GPUs are not required. If you cache images on GPU, use that policy for every method and explain what your timing includes. Report empirical conclusions for your settings; a single seed does not establish a universal optimizer ranking.
 

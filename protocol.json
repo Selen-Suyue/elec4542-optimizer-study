@@ -1,4 +1,9 @@
 {
+  "guidance": {
+    "role": "Reference starting configuration, not mandatory project requirements.",
+    "flexibility": "Students may choose training duration, batch size, schedule and method-specific hyperparameters.",
+    "fair_comparison": "Keep model, data split, initialization, preprocessing and training budget consistent across compared methods; document changes. Tune using validation with comparable budgets; keep test held out."
+  },
   "model": {
     "input_size": 64,
     "classes": 200,
