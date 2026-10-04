@@ -1,4 +1,4 @@
-# ELEC4542: Comparing optimizers for a small ViT
+# ELEC4542: Comparing optimizers for image classification
 
 **Research question:** How do SGD with momentum, Adam, AdamW and Muon with auxiliary AdamW affect convergence, generalization and training cost on the same image-classification task?
 
